@@ -12,7 +12,7 @@ def main(page: ft.Page):
     ws = WindowSettings()
     cl = Colors()
     #import pages
-    app_view = pages.AppWindow(cl)
+    app_view = pages.AppWindow(page ,cl)
     app_bar = pages.AppBarTop(page, cl)
 
     #page settings
@@ -33,7 +33,7 @@ def main(page: ft.Page):
             controls=[
                 top_appbar,
                 main_container
-            ],  alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER
+            ],  alignment=ft.MainAxisAlignment.START, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=40
         )
     )
 

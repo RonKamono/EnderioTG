@@ -1,5 +1,5 @@
 
 
 class WindowSettings:
-    height = 850
-    width = 500
+    height = 900
+    width = 1100

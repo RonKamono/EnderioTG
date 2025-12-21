@@ -25,12 +25,12 @@ class AppBarTop:
                                 ft.Container(ft.Icon(ft.Icons.TELEGRAM, color=cl.text_primary)),
                             ], alignment=MainAxisAlignment.START, expand=1),
                             ft.Row(controls=[
-                                ft.Container(ft.Text('Telegram send', weight=ft.FontWeight.W_600, size=24,
+                                ft.Container(ft.Text('Telegram Signal', weight=ft.FontWeight.W_600, size=24,
                                                      color=cl.text_primary))
                             ],alignment=MainAxisAlignment.CENTER, expand=1),
                             ft.Row(controls=[
                                 ft.Container(
-                                    ft.IconButton(icon=ft.Icons.SUNNY,
+                                    ft.IconButton(icon=ft.Icons.SETTINGS,
                                                   icon_size=24,
                                                   hover_color=cl.secondary_bg,
                                                   icon_color=cl.text_primary,
