@@ -52,7 +52,7 @@ def load_config():
     return bot_token, admin_ids
 
 
-async def main():
+async def bot():
     """Основная функция запуска бота"""
 
     try:
@@ -104,4 +104,4 @@ async def main():
 
 if __name__ == "__main__":
     # Запускаем асинхронную функцию
-    asyncio.run(main())
+    asyncio.run(bot())

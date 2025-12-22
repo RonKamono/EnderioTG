@@ -115,7 +115,9 @@ class TradingBot:
         async def cmd_positions(message: Message):
             """Получить текущие позиции из базы данных"""
             try:
+                from parsing.coin_price_parcing import get_bybit_futures_price
                 positions = self.get_active_positions()
+                print(positions)
 
                 if not positions:
                     await message.answer("📭 Нет активных позиций в базе данных")
@@ -126,34 +128,66 @@ class TradingBot:
                 for i in range(0, len(positions), chunk_size):
                     chunk = positions[i:i + chunk_size]
 
-                    response = f"🎯 <b>АКТИВНЫЕ ПОЗИЦИИ (часть {i // chunk_size + 1}):</b>\n\n"
+                    response = f"🎯 <b>Positions: (chunk: {i // chunk_size + 1}):</b>\n\n"
 
                     for j, pos in enumerate(chunk, i + 1):
-                        pos_type = "📈 LONG" if pos.get('pos_type') == 'long' else "📉 SHORT"
+                        pos_type = pos['pos_type']
+                        list_current_price = get_bybit_futures_price(pos['name'])
+                        current_price = list_current_price['last_price']
+                        created_at_str = pos.get('created_at', '')
 
-                        # Форматируем дату
-                        created_at = pos.get('created_at', '')
-                        if created_at and '.' in created_at:
-                            created_at = created_at.split('.')[0]
+                        if created_at_str:
+                            try:
+                                # Пробуем разные форматы даты
+                                if '.' in created_at_str:
+                                    created_at_str = created_at_str.split('.')[0]
 
+                                # Парсим строку в datetime
+                                dt = datetime.strptime(created_at_str, '%Y-%m-%d %H:%M:%S')
+                                # Форматируем: "время, число месяц"
+                                created_at = dt.strftime("%d.%m %H:%M")
+                            except Exception:
+                                created_at = created_at_str  # Оставляем как есть в случае ошибки
+                        else:
+                            created_at = ''
+
+                        ###
+                        balance_percent = 0
+
+                        entry_price = pos['entry_price']
+                        percent = pos['percent']
+                        cross = pos['cross']
+
+
+                        if entry_price and current_price and cross:
+                            try:
+                                entry = float(entry_price)
+                                current = float(current_price)
+                                leverage = float(cross)
+                                if pos_type == 'short':
+                                    direction_multiplier = -1
+                                else:  # long или по умолчанию
+                                    direction_multiplier = 1
+
+                                price_change_pct = ((current - entry) / entry) * 100 * direction_multiplier
+
+                                position_share = float(percent) / 100 if percent else 0.01
+                                balance_percent = round(price_change_pct * leverage * position_share, 2)
+
+                            except Exception as e:
+                                print(f"Ошибка расчёта: {e}")
+                                balance_percent = 0
+                        ###
                         response += (
-                            f"{j}. <b>{pos['name']}</b>\n"
-                            f"   Тип: {pos_type}\n"
-                            f"   Balance %: {pos.get('percent')}\n"
-                            f"   TP: {pos.get('take_profit')}\n"
-                            f"   SL: {pos.get('stop_loss')}\n"
-                            f"   📅 {created_at}\n\n"
+                            f"{j}. <b>Name: {pos['name']}</b>\n\n"
+                            f"   Type Long/Short: {pos_type.upper()}\n"
+                            f"   Entry price: {entry_price} | Current price: {current_price}\n"
+                            f"   Balance: {pos.get('percent')}% | Profit: {balance_percent}%\n"
+                            f"   TP: {pos.get('take_profit')} | SL: {pos.get('stop_loss')}\n"
+                            f"   Time created: {created_at}\n\n"
                         )
 
                     await message.answer(response)
-
-                # Общая статистика
-                await message.answer(
-                    f"📊 <b>Статистика:</b>\n"
-                    f"• Всего активных позиций: {len(positions)}\n"
-                    f"• LONG: {sum(1 for p in positions if p.get('pos_type') == 'long')}\n"
-                    f"• SHORT: {sum(1 for p in positions if p.get('pos_type') == 'short')}"
-                )
 
             except Exception as e:
                 logger.error(f"Error getting positions: {e}")
@@ -379,7 +413,7 @@ class TradingBot:
                 cursor = conn.cursor()
 
                 cursor.execute('''
-                SELECT id, name, percent, cross, take_profit, stop_loss, pos_type, created_at
+                SELECT id, name, percent, cross, entry_price,take_profit, stop_loss, pos_type, created_at
                 FROM positions 
                 WHERE is_active = 1
                 ORDER BY created_at DESC

@@ -46,7 +46,6 @@ class TelegramNotifier:
             user_ids = self._get_user_ids()
 
             if not user_ids:
-                print("⚠️ Нет активных пользователей для уведомлений")
                 return {'sent': 0, 'total': 0}
 
             # Формируем сообщение
@@ -140,6 +139,47 @@ def get_notifier():
     if _notifier is None:
         _notifier = TelegramNotifier()
     return _notifier
+
+def send_close_notification(close_data: Dict):
+    try:
+        notifier = get_notifier()
+
+        id = close_data.get('id', '?')
+        name = close_data.get('name', 'N/A')
+        pos_type = close_data.get('pos_type', 'N/A')
+        close_reason = close_data.get('close_reason', 'closed')
+        final_pnl = close_data.get('final_pnl', 0)
+        entry_price = close_data.get('entry_price', '?')
+
+        # Форматируем сообщение
+        if close_reason == 'tp':
+            emoji = "🎯"
+            reason_text = "HIT TP"
+            color_indicator = "🟢"
+        else:
+            emoji = "💥"
+            reason_text = "HIT SL"
+            color_indicator = "🔴"
+
+        pnl_sign = "+" if final_pnl > 0 else ""
+        pnl_color = "🟢" if final_pnl > 0 else "🔴" if final_pnl < 0 else "⚪"
+
+        message = (
+            f"{emoji} <b>POSITION CLOSE</b>\n\n"
+            f"<b>{name.upper()}</b>\n"
+            f"ID: {id} | {pos_type.upper()}\n"
+            f"HIT: <b>{reason_text}</b>\n"
+            f"Entry price: {entry_price}\n"
+            f"Realise P/L: {pnl_color} <b>{pnl_sign}{final_pnl}%</b>\n\n"
+            f"<i>Close: {close_data.get('closed_at', 'N/A')}</i>"
+        )
+
+        # Отправляем всем пользователям
+        return notifier._send_to_users(notifier._get_user_ids(), message)
+
+    except Exception as e:
+        print(f"❌ Ошибка отправки уведомления о закрытии: {e}")
+        return {'sent': 0, 'total': 0}
 
 def send_position_notification(position_data: Dict):
     """Отправляет уведомление о позиции"""
