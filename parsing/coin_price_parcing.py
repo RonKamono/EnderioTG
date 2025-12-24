@@ -1,11 +1,10 @@
 import requests
 import concurrent.futures
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 import threading
 
-# Глобальная блокировка для потокобезопасности
+# Глобальная блокировка для потока безопасности
 print_lock = threading.Lock()
-
 
 class BybitFuturesAPI:
     """Класс для работы с API фьючерсов Bybit с многопоточностью"""
@@ -282,7 +281,6 @@ if __name__ == "__main__":
             print(f"✅ НАЙДЕНО: {result['symbol']}")
             print(f"   Тип: {result['category']} | {result['contract_type']}")
             print(f"   Цена: ${result['last_price']}")
-            print(f"   Маркировочная цена: ${result['mark_price']}")
             print(f"   Изменение 24ч: {float(result['24h_change']) * 100:.2f}%")
     else:
         print(f"❌ {result['message']}")
@@ -299,7 +297,8 @@ if __name__ == "__main__":
     with print_lock:
         for coin, result in all_results.items():
             if result['found']:
-                print(f"✅ {coin}: {result['symbol']} - ${result['last_price']}")
+                print(f"{coin}: {result}")
+                print(f"{coin} | Last_price: {result['last_price']}$ | 24H Change: {float(result['24h_change']) * 100:.2f}% | 24h HIGH: {float(result['24h_high'])}$ | 24h LOW: {float(result['24h_low'])}$")
             else:
                 print(f"❌ {coin}: {result['message']}")
 

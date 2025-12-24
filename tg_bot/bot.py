@@ -36,7 +36,7 @@ class TradingBot:
         self.admin_ids = admin_ids or []  # Список ID администраторов
 
         # Инициализируем базу данных для пользователей
-        self.init_users_db()
+        self.users_db_path = 'C:\\DataBase\\bot_users.db'
 
         # Регистрируем обработчики
         self.register_handlers()
@@ -45,9 +45,7 @@ class TradingBot:
         """Инициализация базы данных для пользователей бота"""
         os.makedirs('C:\\DataBase', exist_ok=True)
 
-        users_db_path = 'C:\\DataBase\\bot_users.db'
-
-        with sqlite3.connect(users_db_path) as conn:
+        with sqlite3.connect(self.users_db_path) as conn:
             cursor = conn.cursor()
 
             # Таблица пользователей (всех, кто запустил бота)
@@ -341,9 +339,7 @@ class TradingBot:
     def add_user(self, user_id: int, username: str, first_name: str, last_name: str):
         """Добавить/обновить пользователя в базе"""
         try:
-            users_db_path = 'C:\\DataBase\\bot_users.db'
-
-            with sqlite3.connect(users_db_path) as conn:
+            with sqlite3.connect(self.users_db_path) as conn:
                 cursor = conn.cursor()
 
                 # Проверяем, существует ли пользователь
@@ -373,9 +369,7 @@ class TradingBot:
     def get_all_users(self) -> List[Dict]:
         """Получить всех пользователей"""
         try:
-            users_db_path = 'C:\\DataBase\\bot_users.db'
-
-            with sqlite3.connect(users_db_path) as conn:
+            with sqlite3.connect(self.users_db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
 
@@ -440,7 +434,12 @@ class TradingBot:
 
         for user_id in users:
             try:
-                await self.bot.send_message(chat_id=user_id, text=message)
+                # Добавь disable_web_page_preview=True здесь
+                await self.bot.send_message(
+                    chat_id=user_id,
+                    text=message,
+                    disable_web_page_preview=True  # <-- Вот это уберет предпросмотр
+                )
                 self.update_user_notification_time(user_id)
                 sent += 1
 
@@ -482,6 +481,9 @@ class TradingBot:
         except Exception as e:
             logger.error(f"Error notifying new position: {e}")
             return {"total": 0, "sent": 0, "failed": 0}
+
+    async def notify_trigger_price(self):
+        pass
 
     # ========== СЛУЖЕБНЫЕ МЕТОДЫ ==========
 

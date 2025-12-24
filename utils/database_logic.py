@@ -1,73 +1,131 @@
 import sqlite3
 import os
-
+from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
 
+
 class TradingDB:
     def __init__(self, db_name: str = 'trading.db'):
-        self.db_path = os.path.join('C:\\DataBase', db_name)
-        os.makedirs('C:\\DataBase', exist_ok=True)
+        # Получаем путь к базе данных из настроек реестра
+        self.db_path = self._get_db_path(db_name)
+        # Создаем папку, если она не существует
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self.create_table()
+
+    def _get_db_path(self, db_name: str) -> str:
+        """Получить путь к базе данных из настроек реестра"""
+        try:
+            # Пытаемся импортировать конфиг
+            from utils import config
+            # Используем путь из конфига, если он задан
+            if hasattr(config, 'DB_PATH') and config.DB_PATH:
+                db_path = config.DB_PATH
+                print(f"📁 Использую путь к БД из настроек: {db_path}")
+                return db_path
+        except ImportError as e:
+            print(f"⚠️ Не удалось импортировать config: {e}")
+        except Exception as e:
+            print(f"⚠️ Ошибка при получении пути к БД: {e}")
+
+        # Fallback: путь по умолчанию в AppData/Local
+        return self._get_default_db_path(db_name)
+
+    def _get_default_db_path(self, db_name: str) -> str:
+        """Получить путь по умолчанию в AppData/Local"""
+        local_appdata = os.getenv('LOCALAPPDATA')
+        if not local_appdata:
+            local_appdata = os.path.join(os.path.expanduser('~'), 'AppData', 'Local')
+
+        # Создаем путь в AppData/Local/EnderioTG/TradingBot/
+        app_folder = Path(local_appdata) / 'EnderioTG' / 'TradingBot'
+        app_folder.mkdir(parents=True, exist_ok=True)
+
+        db_path = str(app_folder / db_name)
+        print(f"📁 Использую путь к БД по умолчанию: {db_path}")
+        return db_path
+
+    def show_db_info(self):
+        """Показать информацию о базе данных"""
+        print(f"📊 Информация о базе данных:")
+        print(f"   Путь: {self.db_path}")
+        print(f"   Существует: {'✅' if os.path.exists(self.db_path) else '❌'}")
+        print(f"   Размер: {os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0} байт")
+
+        if os.path.exists(self.db_path):
+            try:
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM positions")
+                    count = cursor.fetchone()[0]
+                    print(f"   Количество записей: {count}")
+            except:
+                print(f"   Количество записей: не удалось определить")
 
     def create_table(self):
         """Создание таблицы"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
 
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS positions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                percent INTEGER CHECK(percent >= 1 AND percent <= 100),
-                cross INTEGER,
-                take_profit REAL NOT NULL,
-                stop_loss REAL NOT NULL,
-                pos_type TEXT CHECK(pos_type IN ('long', 'short')) NOT NULL,
-                entry_price REAL,
-                is_active BOOLEAN DEFAULT 1,
-                close_reason TEXT,
-                closed_at TIMESTAMP,
-                final_pnl REAL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                cursor.execute('''
+                CREATE TABLE IF NOT EXISTS positions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    percent INTEGER CHECK(percent >= 1 AND percent <= 100),
+                    cross INTEGER,
+                    take_profit REAL NOT NULL,
+                    stop_loss REAL NOT NULL,
+                    pos_type TEXT CHECK(pos_type IN ('long', 'short')) NOT NULL,
+                    entry_price REAL,
+                    is_active BOOLEAN DEFAULT 1,
+                    close_reason TEXT,
+                    closed_at TIMESTAMP,
+                    final_pnl REAL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                CHECK(stop_loss >= 0),
-                CHECK(take_profit >= 0),
-                CHECK(stop_loss != take_profit)
-            )
-            ''')
+                    CHECK(stop_loss >= 0),
+                    CHECK(take_profit >= 0),
+                    CHECK(stop_loss != take_profit)
+                )
+                ''')
 
-            # Таблица для истории изменений
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS position_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                position_id INTEGER,
-                name TEXT,
-                percent INTEGER,
-                cross INTEGER,
-                entry_price REAL,
-                take_profit REAL,
-                stop_loss REAL,
-                pos_type TEXT,
-                changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (position_id) REFERENCES positions (id)
-            )
-            ''')
+                # Таблица для истории изменений
+                cursor.execute('''
+                CREATE TABLE IF NOT EXISTS position_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    position_id INTEGER,
+                    name TEXT,
+                    percent INTEGER,
+                    cross INTEGER,
+                    entry_price REAL,
+                    take_profit REAL,
+                    stop_loss REAL,
+                    pos_type TEXT,
+                    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (position_id) REFERENCES positions (id)
+                )
+                ''')
 
-            # Таблица для логов операций
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS position_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                position_id INTEGER,
-                action TEXT,
-                details TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (position_id) REFERENCES positions (id)
-            )
-            ''')
+                # Таблица для логов операций
+                cursor.execute('''
+                CREATE TABLE IF NOT EXISTS position_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    position_id INTEGER,
+                    action TEXT,
+                    details TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (position_id) REFERENCES positions (id)
+                )
+                ''')
 
-            conn.commit()
+                conn.commit()
+                print(f"✅ Таблицы созданы/проверены в базе: {self.db_path}")
+
+        except Exception as e:
+            print(f"❌ Ошибка при создании таблиц: {e}")
+            raise
 
     def add_to_db(self, name: str, percent: int, cross: Optional[int],
                   entry_price: float, take_profit: float, stop_loss: float, pos_type: str) -> Optional[int]:
@@ -361,3 +419,115 @@ class TradingDB:
             print(f"⚠️ Telegram notifier not available: {e}")
         except Exception as e:
             print(f"⚠️ Failed to send close notification: {e}")
+
+    def close_position(self, position_id: int, close_reason: str, final_pnl: float) -> bool:
+        """Закрыть позицию"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # Получаем данные позиции перед закрытием
+                cursor.execute('SELECT * FROM positions WHERE id = ?', (position_id,))
+                position_data = dict(cursor.fetchone())
+
+                # Закрываем позицию
+                cursor.execute('''
+                UPDATE positions 
+                SET is_active = 0, 
+                    close_reason = ?,
+                    closed_at = CURRENT_TIMESTAMP,
+                    final_pnl = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                ''', (close_reason, final_pnl, position_id))
+
+                # Логируем операцию закрытия
+                cursor.execute('''
+                INSERT INTO position_logs (position_id, action, details)
+                VALUES (?, ?, ?)
+                ''', (position_id, 'CLOSE',
+                      f"Closed with reason: {close_reason}, PnL: {final_pnl}%"))
+
+                conn.commit()
+
+                # Отправляем уведомление о закрытии
+                self._send_close_notification(position_data, close_reason, final_pnl)
+
+                print(f"✅ Позиция {position_id} закрыта ({close_reason}), PnL: {final_pnl}%")
+                return True
+
+        except Exception as e:
+            print(f"❌ Ошибка при закрытии позиции: {e}")
+            return False
+
+    def delete_position(self, position_id: int) -> bool:
+        """Удалить позицию"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # Удаляем связанные записи из истории и логов
+                cursor.execute('DELETE FROM position_history WHERE position_id = ?', (position_id,))
+                cursor.execute('DELETE FROM position_logs WHERE position_id = ?', (position_id,))
+
+                # Удаляем саму позицию
+                cursor.execute('DELETE FROM positions WHERE id = ?', (position_id,))
+
+                conn.commit()
+
+                print(f"✅ Позиция {position_id} удалена")
+                return True
+
+        except Exception as e:
+            print(f"❌ Ошибка при удалении позиции: {e}")
+            return False
+
+    def get_position_by_id(self, position_id: int) -> Optional[Dict]:
+        """Получить позицию по ID"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+
+                cursor.execute('SELECT * FROM positions WHERE id = ?', (position_id,))
+                row = cursor.fetchone()
+
+                if row:
+                    return dict(row)
+                return None
+
+        except Exception as e:
+            print(f"❌ Ошибка при получении позиции: {e}")
+            return None
+
+    def cleanup_old_positions(self, days_old: int = 30) -> int:
+        """Очистить старые закрытые позиции"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                cursor.execute('''
+                SELECT id FROM positions 
+                WHERE is_active = 0 
+                AND closed_at <= datetime('now', ?)
+                ''', (f'-{days_old} days',))
+
+                old_positions = cursor.fetchall()
+
+                deleted_count = 0
+                for pos_id in old_positions:
+                    if self.delete_position(pos_id[0]):
+                        deleted_count += 1
+
+                print(f"✅ Удалено {deleted_count} старых позиций (старше {days_old} дней)")
+                return deleted_count
+
+        except Exception as e:
+            print(f"❌ Ошибка при очистке старых позиций: {e}")
+            return 0
+
+
+# Для обратной совместимости со старым кодом
+def get_database():
+    """Создать и вернуть экземпляр TradingDB"""
+    return TradingDB()

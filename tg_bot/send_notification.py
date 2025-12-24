@@ -79,18 +79,3 @@ class NotificationSender:
         except Exception as e:
             print(f"❌ Ошибка при отправке сообщения: {e}")
             return {"total": 0, "sent": 0, "failed": 0}
-
-# Пример использования напрямую
-if __name__ == "__main__":
-    # Пример данных позиции
-    sample_position = {
-        'name': 'AAPL Long Trade',
-        'percent': 15,
-        'cross': 55,
-        'take_profit': 185.5,
-        'stop_loss': 175.0,
-        'pos_type': 'long'
-    }
-
-    # Отправляем уведомление
-    send_notification_to_all(sample_position)
