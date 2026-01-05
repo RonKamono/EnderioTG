@@ -20,6 +20,7 @@ class TerminalPage:
         self.trading_bot = trading_bot
         self._stop_update = False
         self._stop_price_updates = False
+        self._is_shutting_down = False
         self.db = None
 
         # Для хранения данных о парах
@@ -148,7 +149,7 @@ class TerminalPage:
         """Создает все текстовые поля"""
         self.name_coin = self._create_text_field(value='')
         self.percentage_balance = self._create_text_field(value='10')
-        self.cross = self._create_text_field(value='30')
+        self.cross_margin = self._create_text_field(value='30')
         self.take_profit = self._create_text_field()
         self.stop_loss = self._create_text_field()
         self.type = self._create_text_field(value='')
@@ -745,7 +746,7 @@ class TerminalPage:
                                         controls=[
                                             self._create_field_group('Coin Name', self.name_coin),
                                             self._create_field_group('Percent balance', self.percentage_balance),
-                                            self._create_field_group('Cross', self.cross)
+                                            self._create_field_group('Cross', self.cross_margin)
                                         ]
                                     ),
                                     ft.Column(
@@ -922,7 +923,7 @@ class TerminalPage:
             id = position_data.get('id')
             name = position_data.get('name')
             pos_type = position_data.get('pos_type')
-            cross = position_data.get('cross_margin')
+            cross_margin = position_data.get('cross_margin')
             tp = position_data.get('take_profit')
             sl = position_data.get('stop_loss')
             percent = position_data.get('percent')
@@ -932,11 +933,11 @@ class TerminalPage:
 
             # Работа с %
             balance_percent = 0
-            if entry_price and last_price and cross and last_price != 'N/A':
+            if entry_price and last_price and cross_margin and last_price != 'N/A':
                 try:
                     entry = float(entry_price)
                     current = float(last_price)
-                    leverage = float(cross)
+                    leverage = float(cross_margin)
                     if pos_type == 'short':
                         direction_multiplier = -1
                     else:
@@ -1056,7 +1057,7 @@ class TerminalPage:
                             weight=ft.FontWeight.W_600),
                     ft.Row(controls=[
                         ft.Text(f"{pos_type.upper()}", color=type_color, size=15, weight=ft.FontWeight.W_600),
-                        ft.Text(f'| CROSS: {cross} | PERCENT: {percent}%', color=self.cl.text_primary,
+                        ft.Text(f'| CROSS: {cross_margin} | PERCENT: {percent}%', color=self.cl.text_primary,
                                 size=15, weight=ft.FontWeight.W_600)
                     ], alignment=ft.MainAxisAlignment.CENTER),
                     ft.Text(f"Entry: {entry_display}$ | Current: {current_display}$", color=self.cl.text_primary,
@@ -1334,14 +1335,20 @@ class TerminalPage:
         ss = StakanScreener()
         ss.get_usdt_pairs(15, 10)
 
-    async def _create_position_async(self, name, percent, cross, tp, sl, pos_type):
+    async def _create_position_async(self, name, percent, cross_margin, tp, sl, pos_type):
         price_data = await asyncio.to_thread(get_bybit_futures_price, name)
         if not price_data["found"]:
             return None
 
         entry_price = float(price_data["last_price"])
-        return await asyncio.to_thread(
-            self.db.add_to_db, name, percent, cross, entry_price, tp, sl, pos_type
+        return await self.trading_bot.create_position_and_notify(
+            name,
+            percent,
+            cross_margin,
+            entry_price,
+            tp,
+            sl,
+            pos_type
         )
 
     def create_new_position(self, e):
@@ -1349,7 +1356,7 @@ class TerminalPage:
             pid = await self._create_position_async(
                 self.name_coin.value.strip().upper(),
                 int(self.percentage_balance.value),
-                int(self.cross.value),
+                int(self.cross_margin.value),
                 float(self.take_profit.value or 0),
                 float(self.stop_loss.value or 0),
                 self.type.value.strip().lower(),

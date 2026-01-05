@@ -31,7 +31,7 @@ class DatabasePage:
                 )
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER
         )
-Ё
+
         second_column = ft.Column(
             controls=[
                 ft.Container(

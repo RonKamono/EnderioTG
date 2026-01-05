@@ -4,6 +4,9 @@ from pathlib import Path
 
 import flet as ft
 
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 from settings.window_settings import WindowSettings
 from settings.colors import Colors
 import pages
@@ -127,6 +130,7 @@ class App:
 
         if self.trading_bot and self.trading_bot.has_valid_token:
             page.run_task(self.trading_bot.start)
+
 
     def change_tab(self, tab_name: str):
         print(f"Switch tab → {tab_name}")

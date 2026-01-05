@@ -75,8 +75,8 @@ def get_setting_list(key, default=None):
         return default
 
 # Настройки приложения
-TELEGRAM_BOT_TOKEN = get_setting('telegram_bot_token', "") # 8218318461:AAE6t5wlDAI9wu0bpst6iNt6Ec6Ir1k8xpo
-ADMIN_IDS = get_setting_list('admin_ids', []) # 7594592988
+TELEGRAM_BOT_TOKEN = get_setting('telegram_bot_token', "")
+ADMIN_IDS = get_setting_list('admin_ids', [])
 API_URL = get_setting('api_url', "http://localhost:8000")
 
 DB_PATH = get_setting('db_path', get_default_db_path())
