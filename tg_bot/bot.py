@@ -5,10 +5,9 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-import sqlite3
 from datetime import datetime
 from typing import List, Dict
-from utils.config import get_setting, get_default_users_db_path, get_default_db_path
+from utils.trading_db_postgres import TradingDBPostgres
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,12 +19,11 @@ class TradingBot:
             token=token,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML)
         )
+
+        self.db = TradingDBPostgres()
+
         self.dp = Dispatcher()
-
-        self.db_path = get_setting('db_path', get_default_db_path())
-        self.users_db_path = get_setting('bot_users_db', get_default_users_db_path())
         self.admin_ids = admin_ids or []
-
         self.register_handlers()
 
     # ==========================
@@ -93,41 +91,18 @@ class TradingBot:
     # ==========================
 
     async def add_user(self, user_id, username, first_name, last_name):
-        def _add():
-            with sqlite3.connect(self.users_db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    '''INSERT OR REPLACE INTO users
-                    (user_id, username, first_name, last_name, is_active)
-                    VALUES (?, ?, ?, ?, 1)''',
-                    (user_id, username, first_name, last_name)
-                )
-                conn.commit()
+        await asyncio.to_thread(
+            self.db.add_user,
+            user_id, username, first_name, last_name
+        )
 
-        await self._db(_add)
+    async def get_active_users(self):
+        return await asyncio.to_thread(self.db.get_active_users)
 
-    async def get_active_users(self) -> List[int]:
-        def _get():
-            with sqlite3.connect(self.users_db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute('SELECT user_id FROM users WHERE is_active = 1')
-                return [row[0] for row in cursor.fetchall()]
-
-        return await self._db(_get)
-
-    async def get_active_positions(self) -> List[Dict]:
-        def _get():
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute(
-                    '''SELECT * FROM positions
-                       WHERE is_active = 1
-                       ORDER BY created_at DESC'''
-                )
-                return [dict(row) for row in cursor.fetchall()]
-
-        return await self._db(_get)
+    async def get_active_positions(self):
+        return await asyncio.to_thread(
+            self.db.get_all_positions, True
+        )
 
     # ==========================
     # BROADCAST
