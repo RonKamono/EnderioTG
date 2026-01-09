@@ -14,8 +14,9 @@ git clone https://github.com/RonKamono/CryptoTerminal.git
 cd CryptoTerminal
 
 # Создать виртуальное окружение
-python -m venv venv
-venv\Scripts\activate     # Windows
+1. python -m venv venv
+2. venv\Scripts\activate     # Windows
+3. Заполнить .env
 
 # Установить зависимости
 pip install -r requirements.txt
